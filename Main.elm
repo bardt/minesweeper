@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, h1)
+import Html exposing (Html, text, div, h1, table, tr, td)
 import Html.App as HtmlApp
 import Matrix exposing (Matrix)
 
@@ -24,9 +24,17 @@ type alias Map =
 
 
 type alias Square =
-    { hasMine : Bool
-    , isCovered : Bool
-    }
+    ( MinePresence, CoverPresence )
+
+
+type MinePresence
+    = Mine
+    | Empty
+
+
+type CoverPresence
+    = Covered
+    | Uncovered
 
 
 initialModel : Model
@@ -40,15 +48,11 @@ initialMap =
     let
         -- Short for Free
         f =
-            { hasMine = False
-            , isCovered = True
-            }
+            ( Empty, Covered )
 
         -- Short for Mine
         m =
-            { hasMine = True
-            , isCovered = True
-            }
+            ( Mine, Covered )
 
         x =
             [ [ f, m, f, f, f ]
@@ -74,4 +78,38 @@ view : Model -> Html Msg
 view model =
     div []
         [ h1 [] [ text "Minesweeper" ]
+        , mapView model.map
         ]
+
+
+mapView : Map -> Html Msg
+mapView map =
+    let
+        tableRows =
+            List.map mapRowView (Matrix.toList map)
+    in
+        table [] tableRows
+
+
+mapRowView : List Square -> Html Msg
+mapRowView row =
+    tr [] (List.map squareView row)
+
+
+squareView : Square -> Html Msg
+squareView square =
+    let
+        content =
+            case square of
+                ( _, Covered ) ->
+                    "◻️"
+
+                ( Mine, Uncovered ) ->
+                    "💣"
+
+                ( Empty, Uncovered ) ->
+                    "1"
+    in
+        td []
+            [ text content
+            ]
