@@ -25,7 +25,11 @@ type alias Map =
 
 
 type alias Square =
-    ( MinePresence, CoverPresence )
+    ( MinePresence, CoverPresence, MinesAround )
+
+
+type alias MinesAround =
+    Int
 
 
 type MinePresence
@@ -49,11 +53,11 @@ initialMap =
     let
         -- Short for Free
         f =
-            ( Empty, Covered )
+            ( Empty, Covered, 0 )
 
         -- Short for Mine
         m =
-            ( Mine, Covered )
+            ( Mine, Covered, 0 )
 
         x =
             [ [ f, m, f, f, f ]
@@ -63,7 +67,63 @@ initialMap =
             , [ f, f, f, f, f ]
             ]
     in
-        Matrix.fromList x
+        countMines (Matrix.fromList x)
+
+
+countMines : Map -> Map
+countMines map =
+    let
+        checkMine : Location -> Int
+        checkMine location =
+            Matrix.get location map
+                |> Maybe.map hasMines
+                |> Maybe.withDefault 0
+
+        neighbourLocations : Location -> List Location
+        neighbourLocations location =
+            let
+                row =
+                    Matrix.row location
+
+                col =
+                    Matrix.col location
+            in
+                [ ( row - 1, col - 1 )
+                , ( row - 1, col )
+                , ( row - 1, col + 1 )
+                , ( row, col - 1 )
+                , ( row, col )
+                , ( row, col + 1 )
+                , ( row + 1, col - 1 )
+                , ( row + 1, col )
+                , ( row + 1, col + 1 )
+                ]
+
+        countEach : Location -> Square -> Square
+        countEach location square =
+            case square of
+                ( Mine, c, m ) ->
+                    ( Mine, c, 0 )
+
+                ( Empty, c, m ) ->
+                    ( Empty
+                    , c
+                    , neighbourLocations location
+                        |> List.map checkMine
+                        |> List.sum
+                    )
+    in
+        Matrix.mapWithLocation countEach map
+
+
+hasMines : Square -> Int
+hasMines square =
+    case square of
+        ( Mine, _, _ ) ->
+            1
+
+        _ ->
+            0
 
 
 type Msg
@@ -79,7 +139,7 @@ update msg model =
 
 uncover : Map -> Location -> Map
 uncover map location =
-    Matrix.update location (\( m, c ) -> ( m, Uncovered )) map
+    Matrix.update location (\( m, c, count ) -> ( m, Uncovered, count )) map
 
 
 view : Model -> Html Msg
@@ -112,14 +172,14 @@ squareView location square =
     let
         content =
             case square of
-                ( _, Covered ) ->
+                ( _, Covered, _ ) ->
                     "◻️"
 
-                ( Mine, Uncovered ) ->
+                ( Mine, Uncovered, _ ) ->
                     "💣"
 
-                ( Empty, Uncovered ) ->
-                    "1"
+                ( Empty, Uncovered, count ) ->
+                    toString count
     in
         td
             [ onClick (Uncover location)
