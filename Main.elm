@@ -2,7 +2,8 @@ module Main exposing (..)
 
 import Html exposing (Html, text, div, h1, table, tr, td)
 import Html.App as HtmlApp
-import Matrix exposing (Matrix)
+import Html.Events exposing (onClick)
+import Matrix exposing (Matrix, Location)
 
 
 main : Program Never
@@ -66,12 +67,19 @@ initialMap =
 
 
 type Msg
-    = NoOp
+    = Uncover Location
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        Uncover location ->
+            { model | map = uncover model.map location }
+
+
+uncover : Map -> Location -> Map
+uncover map location =
+    Matrix.update location (\( m, c ) -> ( m, Uncovered )) map
 
 
 view : Model -> Html Msg
@@ -85,19 +93,22 @@ view model =
 mapView : Map -> Html Msg
 mapView map =
     let
+        htmlMap =
+            Matrix.mapWithLocation squareView map
+
         tableRows =
-            List.map mapRowView (Matrix.toList map)
+            List.map mapRowView (Matrix.toList htmlMap)
     in
         table [] tableRows
 
 
-mapRowView : List Square -> Html Msg
-mapRowView row =
-    tr [] (List.map squareView row)
+mapRowView : List (Html Msg) -> Html Msg
+mapRowView rowHtml =
+    tr [] rowHtml
 
 
-squareView : Square -> Html Msg
-squareView square =
+squareView : Location -> Square -> Html Msg
+squareView location square =
     let
         content =
             case square of
@@ -110,6 +121,8 @@ squareView square =
                 ( Empty, Uncovered ) ->
                     "1"
     in
-        td []
+        td
+            [ onClick (Uncover location)
+            ]
             [ text content
             ]
