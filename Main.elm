@@ -16,8 +16,13 @@ main =
         }
 
 
+
+-- MODEL
+
+
 type alias Model =
     { map : Map
+    , gameStatus : GameStatus
     }
 
 
@@ -43,9 +48,15 @@ type CoverPresence
     | Uncovered
 
 
+type GameStatus
+    = Started
+    | Failed
+
+
 initialModel : Model
 initialModel =
     { map = initialMap
+    , gameStatus = Started
     }
 
 
@@ -74,10 +85,10 @@ initialMap =
 countMines : Map -> Map
 countMines map =
     let
-        checkMine : Location -> Int
-        checkMine location =
+        countOne : Location -> Int
+        countOne location =
             Matrix.get location map
-                |> Maybe.map hasMines
+                |> Maybe.map hasMinesCount
                 |> Maybe.withDefault 0
 
         countEach : Location -> Square -> Square
@@ -90,7 +101,7 @@ countMines map =
                     ( Empty
                     , c
                     , neighbourLocations location
-                        |> List.map checkMine
+                        |> List.map countOne
                         |> List.sum
                     )
     in
@@ -117,14 +128,25 @@ neighbourLocations location =
         ]
 
 
-hasMines : Square -> Int
-hasMines square =
+hasMinesCount : Square -> Int
+hasMinesCount square =
     case square of
         ( Mine, _, _ ) ->
             1
 
         _ ->
             0
+
+
+hasMine : Map -> Location -> Bool
+hasMine map loc =
+    Matrix.get loc map
+        |> Maybe.map (\x -> 1 == hasMinesCount x)
+        |> Maybe.withDefault False
+
+
+
+-- UPDATE
 
 
 type Msg
@@ -135,7 +157,18 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Uncover location ->
-            { model | map = uncover location model.map }
+            { model
+                | map =
+                    if model.gameStatus == Failed then
+                        model.map
+                    else
+                        uncover location model.map
+                , gameStatus =
+                    if hasMine model.map location then
+                        Failed
+                    else
+                        model.gameStatus
+            }
 
 
 uncover : Location -> Map -> Map
@@ -180,12 +213,25 @@ uncover location map =
             map
 
 
+
+-- VIEW
+
+
 view : Model -> Html Msg
 view model =
-    div []
-        [ h1 [] [ text "Minesweeper" ]
-        , mapView model.map
-        ]
+    let
+        baseChildren =
+            [ h1 [] [ text "Minesweeper" ]
+            , mapView model.map
+            ]
+
+        children =
+            if model.gameStatus == Failed then
+                baseChildren ++ [ h1 [] [ text "You failed" ] ]
+            else
+                baseChildren
+    in
+        div [] children
 
 
 mapView : Map -> Html Msg
