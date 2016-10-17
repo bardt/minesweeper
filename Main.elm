@@ -51,6 +51,7 @@ type CoverPresence
 type GameStatus
     = Started
     | Failed
+    | Won
 
 
 initialModel : Model
@@ -145,6 +146,50 @@ hasMine map loc =
         |> Maybe.withDefault False
 
 
+mapIsUncovered : Map -> Bool
+mapIsUncovered map =
+    let
+        isWinning square =
+            case square of
+                ( Empty, Uncovered, _ ) ->
+                    True
+
+                ( Mine, Covered, _ ) ->
+                    True
+
+                _ ->
+                    False
+    in
+        Matrix.flatten map
+            |> List.all isWinning
+
+
+mapHasUncoveredMines : Map -> Bool
+mapHasUncoveredMines map =
+    let
+        mineIsUncovered : Square -> Bool
+        mineIsUncovered square =
+            case square of
+                ( Mine, Uncovered, _ ) ->
+                    True
+
+                _ ->
+                    False
+    in
+        Matrix.flatten map
+            |> List.any mineIsUncovered
+
+
+resolveGameStatus : Map -> GameStatus
+resolveGameStatus map =
+    if mapIsUncovered map then
+        Won
+    else if mapHasUncoveredMines map then
+        Failed
+    else
+        Started
+
+
 
 -- UPDATE
 
@@ -155,20 +200,21 @@ type Msg
 
 update : Msg -> Model -> Model
 update msg model =
-    case msg of
-        Uncover location ->
-            { model
-                | map =
-                    if model.gameStatus == Failed then
-                        model.map
-                    else
-                        uncover location model.map
-                , gameStatus =
-                    if hasMine model.map location then
-                        Failed
-                    else
-                        model.gameStatus
-            }
+    let
+        uncoveredMap location =
+            if model.gameStatus == Started then
+                uncover location model.map
+            else
+                model.map
+    in
+        case msg of
+            Uncover location ->
+                { model
+                    | map =
+                        uncoveredMap location
+                    , gameStatus =
+                        resolveGameStatus (uncoveredMap location)
+                }
 
 
 uncover : Location -> Map -> Map
@@ -226,10 +272,15 @@ view model =
             ]
 
         children =
-            if model.gameStatus == Failed then
-                baseChildren ++ [ h1 [] [ text "You failed" ] ]
-            else
-                baseChildren
+            case model.gameStatus of
+                Failed ->
+                    baseChildren ++ [ h1 [] [ text "You failed" ] ]
+
+                Won ->
+                    baseChildren ++ [ h1 [] [ text "The winner is you" ] ]
+
+                Started ->
+                    baseChildren
     in
         div [] children
 
