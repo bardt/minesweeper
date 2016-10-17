@@ -3,6 +3,7 @@ module Main exposing (..)
 import Html exposing (Html, text, div, h1, table, tr, td)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick)
+import Set exposing (Set)
 import Matrix exposing (Matrix, Location)
 
 
@@ -79,26 +80,6 @@ countMines map =
                 |> Maybe.map hasMines
                 |> Maybe.withDefault 0
 
-        neighbourLocations : Location -> List Location
-        neighbourLocations location =
-            let
-                row =
-                    Matrix.row location
-
-                col =
-                    Matrix.col location
-            in
-                [ ( row - 1, col - 1 )
-                , ( row - 1, col )
-                , ( row - 1, col + 1 )
-                , ( row, col - 1 )
-                , ( row, col )
-                , ( row, col + 1 )
-                , ( row + 1, col - 1 )
-                , ( row + 1, col )
-                , ( row + 1, col + 1 )
-                ]
-
         countEach : Location -> Square -> Square
         countEach location square =
             case square of
@@ -114,6 +95,26 @@ countMines map =
                     )
     in
         Matrix.mapWithLocation countEach map
+
+
+neighbourLocations : Location -> List Location
+neighbourLocations location =
+    let
+        row =
+            Matrix.row location
+
+        col =
+            Matrix.col location
+    in
+        [ ( row - 1, col - 1 )
+        , ( row - 1, col )
+        , ( row - 1, col + 1 )
+        , ( row, col - 1 )
+        , ( row, col + 1 )
+        , ( row + 1, col - 1 )
+        , ( row + 1, col )
+        , ( row + 1, col + 1 )
+        ]
 
 
 hasMines : Square -> Int
@@ -134,12 +135,49 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         Uncover location ->
-            { model | map = uncover model.map location }
+            { model | map = uncover location model.map }
 
 
-uncover : Map -> Location -> Map
-uncover map location =
-    Matrix.update location (\( m, c, count ) -> ( m, Uncovered, count )) map
+uncover : Location -> Map -> Map
+uncover location map =
+    let
+        canBeUncovered =
+            Matrix.get location map
+                |> Maybe.map (\( m, c, _ ) -> c == Covered)
+                |> Maybe.withDefault False
+
+        isCountZero : Bool
+        isCountZero =
+            Matrix.get location map
+                |> Maybe.map (\( m, _, count ) -> count == 0 && m /= Mine)
+                |> Maybe.withDefault False
+
+        nextLocationsToUncover : Set Location
+        nextLocationsToUncover =
+            Set.fromList
+                (if isCountZero then
+                    neighbourLocations location
+                 else
+                    []
+                )
+
+        uncoverOne : Map -> Location -> Map
+        uncoverOne m loc =
+            Matrix.update loc (\( m, c, count ) -> ( m, Uncovered, count )) m
+
+        uncoverNext : Map -> Map
+        uncoverNext m =
+            Set.foldl uncover m nextLocationsToUncover
+    in
+        -- recursion exit condition
+        if canBeUncovered then
+            -- uncover this one
+            uncoverOne map location
+                -- try to uncover all neighbouts
+                |>
+                    uncoverNext
+        else
+            map
 
 
 view : Model -> Html Msg
