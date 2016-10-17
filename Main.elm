@@ -88,7 +88,7 @@ countMines map =
         countOne : Location -> Int
         countOne location =
             Matrix.get location map
-                |> Maybe.map hasMinesCount
+                |> Maybe.map minesInSquare
                 |> Maybe.withDefault 0
 
         countEach : Location -> Square -> Square
@@ -128,8 +128,8 @@ neighbourLocations location =
         ]
 
 
-hasMinesCount : Square -> Int
-hasMinesCount square =
+minesInSquare : Square -> Int
+minesInSquare square =
     case square of
         ( Mine, _, _ ) ->
             1
@@ -138,10 +138,10 @@ hasMinesCount square =
             0
 
 
-hasMine : Map -> Location -> Bool
-hasMine map loc =
+squareHasMine : Map -> Location -> Bool
+squareHasMine map loc =
     Matrix.get loc map
-        |> Maybe.map (\x -> 1 == hasMinesCount x)
+        |> Maybe.map (\x -> 1 == minesInSquare x)
         |> Maybe.withDefault False
 
 
