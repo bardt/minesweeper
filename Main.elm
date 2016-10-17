@@ -3,7 +3,6 @@ module Main exposing (..)
 import Html exposing (Html, text, div, h1, table, tr, td)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick)
-import Set exposing (Set)
 import Matrix exposing (Matrix, Location)
 
 
@@ -225,20 +224,18 @@ uncover location map =
                 |> Maybe.map (\( m, c, _ ) -> c == Covered)
                 |> Maybe.withDefault False
 
-        isCountZero : Bool
-        isCountZero =
+        noMinesAround : Bool
+        noMinesAround =
             Matrix.get location map
                 |> Maybe.map (\( m, _, count ) -> count == 0 && m /= Mine)
                 |> Maybe.withDefault False
 
-        nextLocationsToUncover : Set Location
+        nextLocationsToUncover : List Location
         nextLocationsToUncover =
-            Set.fromList
-                (if isCountZero then
-                    neighbourLocations location
-                 else
-                    []
-                )
+            if noMinesAround then
+                neighbourLocations location
+            else
+                []
 
         uncoverOne : Map -> Location -> Map
         uncoverOne m loc =
@@ -246,7 +243,7 @@ uncover location map =
 
         uncoverNext : Map -> Map
         uncoverNext m =
-            Set.foldl uncover m nextLocationsToUncover
+            List.foldl uncover m nextLocationsToUncover
     in
         -- recursion exit condition
         if canBeUncovered then
