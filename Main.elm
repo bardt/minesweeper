@@ -1,6 +1,6 @@
 module Main exposing (..)
 
-import Html exposing (Html, text, div, h1, table, tr, td)
+import Html exposing (Html, text, div, h1, table, tr, td, button)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick)
 import Matrix exposing (Matrix, Location)
@@ -195,6 +195,7 @@ resolveGameStatus map =
 
 type Msg
     = Uncover Location
+    | StartNewGame
 
 
 update : Msg -> Model -> Model
@@ -213,6 +214,12 @@ update msg model =
                         uncoveredMap location
                     , gameStatus =
                         resolveGameStatus (uncoveredMap location)
+                }
+
+            StartNewGame ->
+                { model
+                    | map = initialMap
+                    , gameStatus = Started
                 }
 
 
@@ -265,6 +272,7 @@ view model =
     let
         baseChildren =
             [ h1 [] [ text "Minesweeper" ]
+            , button [ onClick StartNewGame ] [ text "New game" ]
             , mapView model.map
             ]
 
