@@ -2,8 +2,9 @@ module Main exposing (..)
 
 import Html exposing (Html, text, div, h1, table, tr, td, button)
 import Html.App as HtmlApp
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onWithOptions)
 import Matrix exposing (Matrix, Location)
+import Json.Decode as Json
 
 
 main : Program Never
@@ -45,6 +46,7 @@ type MinePresence
 type CoverPresence
     = Covered
     | Uncovered
+    | Marked
 
 
 type GameStatus
@@ -156,6 +158,9 @@ mapIsUncovered map =
                 ( Mine, Covered, _ ) ->
                     True
 
+                ( Mine, Marked, _ ) ->
+                    True
+
                 _ ->
                     False
     in
@@ -195,6 +200,7 @@ resolveGameStatus map =
 
 type Msg
     = Uncover Location
+    | Mark Location
     | StartNewGame
 
 
@@ -216,11 +222,31 @@ update msg model =
                         resolveGameStatus (uncoveredMap location)
                 }
 
+            Mark location ->
+                { model
+                    | map = mark location model.map
+                }
+
             StartNewGame ->
                 { model
                     | map = initialMap
                     , gameStatus = Started
                 }
+
+
+uncoverOne : Map -> Location -> Map
+uncoverOne m loc =
+    let
+        conditionalUncover : Square -> Square
+        conditionalUncover s =
+            case s of
+                ( m, Covered, c ) ->
+                    ( m, Uncovered, c )
+
+                _ ->
+                    s
+    in
+        Matrix.update loc conditionalUncover m
 
 
 uncover : Location -> Map -> Map
@@ -244,10 +270,6 @@ uncover location map =
             else
                 []
 
-        uncoverOne : Map -> Location -> Map
-        uncoverOne m loc =
-            Matrix.update loc (\( m, c, count ) -> ( m, Uncovered, count )) m
-
         uncoverNext : Map -> Map
         uncoverNext m =
             List.foldl uncover m nextLocationsToUncover
@@ -261,6 +283,24 @@ uncover location map =
                     uncoverNext
         else
             map
+
+
+mark : Location -> Map -> Map
+mark location map =
+    let
+        toggleMark : Square -> Square
+        toggleMark s =
+            case s of
+                ( m, Covered, c ) ->
+                    ( m, Marked, c )
+
+                ( m, Marked, c ) ->
+                    ( m, Covered, c )
+
+                _ ->
+                    s
+    in
+        Matrix.update location toggleMark map
 
 
 
@@ -312,6 +352,9 @@ squareView location square =
     let
         content =
             case square of
+                ( _, Marked, _ ) ->
+                    "🚩"
+
                 ( _, Covered, _ ) ->
                     "◻️"
 
@@ -323,6 +366,18 @@ squareView location square =
     in
         td
             [ onClick (Uncover location)
+            , onRightClick (Mark location)
             ]
             [ text content
             ]
+
+
+onRightClick : Msg -> Html.Attribute Msg
+onRightClick msg =
+    let
+        preventOpt =
+            { stopPropagation = True
+            , preventDefault = True
+            }
+    in
+        onWithOptions "contextmenu" preventOpt (Json.succeed msg)
