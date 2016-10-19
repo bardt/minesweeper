@@ -81,11 +81,34 @@ initialMap =
             , [ f, f, f, f, f ]
             ]
     in
-        countMines (Matrix.fromList x)
+        putCountersIntoSquares (Matrix.fromList x)
 
 
-countMines : Map -> Map
-countMines map =
+countMines : Map -> Int
+countMines m =
+    Matrix.flatten m
+        |> List.map minesInSquare
+        |> List.sum
+
+
+countMarks : Map -> Int
+countMarks m =
+    let
+        checkMark s =
+            case s of
+                ( _, Marked, _ ) ->
+                    True
+
+                _ ->
+                    False
+    in
+        Matrix.flatten m
+            |> List.filter checkMark
+            |> List.length
+
+
+putCountersIntoSquares : Map -> Map
+putCountersIntoSquares map =
     let
         countOne : Location -> Int
         countOne location =
@@ -310,10 +333,22 @@ mark location map =
 view : Model -> Html Msg
 view model =
     let
+        minesTotal =
+            countMines model.map
+
+        marksLeft =
+            minesTotal - countMarks model.map
+
         baseChildren =
-            [ h1 [] [ text "Minesweeper" ]
-            , button [ onClick StartNewGame ] [ text "New game" ]
-            , mapView model.map
+            [ h1 []
+                [ text "Minesweeper" ]
+            , button [ onClick StartNewGame ]
+                [ text "New game" ]
+            , div []
+                [ div [] [ text <| "Total mines: " ++ toString minesTotal ]
+                , div [] [ text <| "Flags left: " ++ toString marksLeft ]
+                , mapView model.map
+                ]
             ]
 
         children =
