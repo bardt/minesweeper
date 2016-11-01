@@ -1,13 +1,15 @@
 module Main exposing (..)
 
+import Types exposing (..)
+import Square
 import Html exposing (Html, text, div, h1, table, tr, td, button)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
 import Matrix exposing (Matrix, Location)
 import Json.Decode as Json
 import Random exposing (Generator)
-import Random.Array as RandomArray
-import Array exposing (Array)
+import Map
+import Rest exposing (..)
 
 
 main : Program Never
@@ -22,7 +24,7 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Random.generate NewMap (randomMap initialModel.difficultyLevel) )
+    ( initialModel, Random.generate NewMap (Map.random initialModel.difficultyLevel) )
 
 
 subscriptions : Model -> Sub Msg
@@ -34,63 +36,11 @@ subscriptions model =
 -- MODEL
 
 
-type alias Model =
-    { map : Map
-    , gameStatus : GameStatus
-    , difficultyLevel : DifficultyLevel
-    }
-
-
-type alias Map =
-    Matrix Square
-
-
-type alias Square =
-    ( MinePresence, CoverPresence, MinesAround )
-
-
-type alias MinesAround =
-    Int
-
-
-type MinePresence
-    = Mine
-    | Empty
-
-
-type CoverPresence
-    = Covered
-    | Uncovered
-    | Marked
-
-
-type GameStatus
-    = Started
-    | Failed
-    | Won
-
-
 initialModel : Model
 initialModel =
-    { map = initialMap
+    { map = Map.empty
     , gameStatus = Started
-    , difficultyLevel = difficultyLevels.beginner
-    }
-
-
-initialMap : Map
-initialMap =
-    Matrix.fromList []
-
-
-type alias DifficultyLevel =
-    { height : Int, width : Int, mines : Int }
-
-
-type alias DifficultyLevels =
-    { beginner : DifficultyLevel
-    , intermediate : DifficultyLevel
-    , expert : DifficultyLevel
+    , difficultyLevel = difficultyLevels.expert
     }
 
 
@@ -102,45 +52,15 @@ difficultyLevels =
     }
 
 
-randomMap : DifficultyLevel -> Generator Map
-randomMap level =
-    let
-        count =
-            min (level.width * level.height) level.mines
-
-        fillMatrix : Array Location -> Map
-        fillMatrix locations =
-            let
-                locList =
-                    Array.toList locations
-            in
-                Matrix.matrix level.height
-                    level.width
-                    (\loc ->
-                        if List.member loc locList then
-                            ( Mine, Covered, 0 )
-                        else
-                            ( Empty, Covered, 0 )
-                    )
-    in
-        Matrix.matrix level.height level.width (\loc -> loc)
-            |> Matrix.flatten
-            |> Array.fromList
-            |> RandomArray.shuffle
-            |> Random.map (Array.slice 0 count)
-            |> Random.map fillMatrix
-            |> Random.map putCountersIntoSquares
-
-
-countMines : Map -> Int
-countMines m =
+countMinesTotal : Map -> Int
+countMinesTotal m =
     Matrix.flatten m
-        |> List.map minesInSquare
+        |> List.map (boolToInt << Square.hasMine)
         |> List.sum
 
 
-countMarks : Map -> Int
-countMarks m =
+countUsedMarks : Map -> Int
+countUsedMarks m =
     let
         checkMark s =
             case s of
@@ -155,111 +75,11 @@ countMarks m =
             |> List.length
 
 
-putCountersIntoSquares : Map -> Map
-putCountersIntoSquares map =
-    let
-        countOne : Location -> Int
-        countOne location =
-            Matrix.get location map
-                |> Maybe.map minesInSquare
-                |> Maybe.withDefault 0
-
-        countEach : Location -> Square -> Square
-        countEach location square =
-            case square of
-                ( Mine, c, m ) ->
-                    ( Mine, c, 0 )
-
-                ( Empty, c, m ) ->
-                    ( Empty
-                    , c
-                    , neighbourLocations location
-                        |> List.map countOne
-                        |> List.sum
-                    )
-    in
-        Matrix.mapWithLocation countEach map
-
-
-neighbourLocations : Location -> List Location
-neighbourLocations location =
-    let
-        row =
-            Matrix.row location
-
-        col =
-            Matrix.col location
-    in
-        [ ( row - 1, col - 1 )
-        , ( row - 1, col )
-        , ( row - 1, col + 1 )
-        , ( row, col - 1 )
-        , ( row, col + 1 )
-        , ( row + 1, col - 1 )
-        , ( row + 1, col )
-        , ( row + 1, col + 1 )
-        ]
-
-
-minesInSquare : Square -> Int
-minesInSquare square =
-    case square of
-        ( Mine, _, _ ) ->
-            1
-
-        _ ->
-            0
-
-
-squareHasMine : Map -> Location -> Bool
-squareHasMine map loc =
-    Matrix.get loc map
-        |> Maybe.map (\x -> 1 == minesInSquare x)
-        |> Maybe.withDefault False
-
-
-mapIsUncovered : Map -> Bool
-mapIsUncovered map =
-    let
-        isWinning square =
-            case square of
-                ( Empty, Uncovered, _ ) ->
-                    True
-
-                ( Mine, Covered, _ ) ->
-                    True
-
-                ( Mine, Marked, _ ) ->
-                    True
-
-                _ ->
-                    False
-    in
-        Matrix.flatten map
-            |> List.all isWinning
-
-
-mapHasUncoveredMines : Map -> Bool
-mapHasUncoveredMines map =
-    let
-        mineIsUncovered : Square -> Bool
-        mineIsUncovered square =
-            case square of
-                ( Mine, Uncovered, _ ) ->
-                    True
-
-                _ ->
-                    False
-    in
-        Matrix.flatten map
-            |> List.any mineIsUncovered
-
-
-resolveGameStatus : Map -> GameStatus
-resolveGameStatus map =
-    if mapIsUncovered map then
+checkGameStatus : Map -> GameStatus
+checkGameStatus map =
+    if Map.isSolved map then
         Won
-    else if mapHasUncoveredMines map then
+    else if Map.isFailed map then
         Failed
     else
         Started
@@ -281,7 +101,7 @@ update msg model =
     let
         uncoveredMap location =
             if model.gameStatus == Started then
-                uncover location model.map
+                Map.uncover model.map location
             else
                 model.map
     in
@@ -291,21 +111,21 @@ update msg model =
                     | map =
                         uncoveredMap location
                     , gameStatus =
-                        resolveGameStatus (uncoveredMap location)
+                        checkGameStatus (uncoveredMap location)
                   }
                 , Cmd.none
                 )
 
             Mark location ->
                 ( { model
-                    | map = mark location model.map
+                    | map = Map.mark model.map location
                   }
                 , Cmd.none
                 )
 
             StartNewGame ->
                 ( model
-                , Random.generate NewMap (randomMap model.difficultyLevel)
+                , Random.generate NewMap (Map.random model.difficultyLevel)
                 )
 
             NewMap map ->
@@ -317,75 +137,6 @@ update msg model =
                 )
 
 
-uncoverOne : Map -> Location -> Map
-uncoverOne m loc =
-    let
-        conditionalUncover : Square -> Square
-        conditionalUncover s =
-            case s of
-                ( m, Covered, c ) ->
-                    ( m, Uncovered, c )
-
-                _ ->
-                    s
-    in
-        Matrix.update loc conditionalUncover m
-
-
-uncover : Location -> Map -> Map
-uncover location map =
-    let
-        canBeUncovered =
-            Matrix.get location map
-                |> Maybe.map (\( m, c, _ ) -> c == Covered)
-                |> Maybe.withDefault False
-
-        noMinesAround : Bool
-        noMinesAround =
-            Matrix.get location map
-                |> Maybe.map (\( m, _, count ) -> count == 0 && m /= Mine)
-                |> Maybe.withDefault False
-
-        nextLocationsToUncover : List Location
-        nextLocationsToUncover =
-            if noMinesAround then
-                neighbourLocations location
-            else
-                []
-
-        uncoverNext : Map -> Map
-        uncoverNext m =
-            List.foldl uncover m nextLocationsToUncover
-    in
-        -- recursion exit condition
-        if canBeUncovered then
-            -- uncover this one
-            uncoverOne map location
-                -- try to uncover all neighbouts
-                |>
-                    uncoverNext
-        else
-            map
-
-
-mark : Location -> Map -> Map
-mark location map =
-    let
-        toggleMark : Square -> Square
-        toggleMark s =
-            case s of
-                ( m, Covered, c ) ->
-                    ( m, Marked, c )
-
-                ( m, Marked, c ) ->
-                    ( m, Covered, c )
-
-                _ ->
-                    s
-    in
-        Matrix.update location toggleMark map
-
-
 
 -- VIEW
 
@@ -394,10 +145,10 @@ view : Model -> Html Msg
 view model =
     let
         minesTotal =
-            countMines model.map
+            countMinesTotal model.map
 
         marksLeft =
-            minesTotal - countMarks model.map
+            minesTotal - countUsedMarks model.map
 
         baseChildren =
             [ h1 []
