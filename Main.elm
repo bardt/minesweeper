@@ -40,7 +40,7 @@ initialModel : Model
 initialModel =
     { map = Map.empty
     , gameStatus = Started
-    , difficultyLevel = difficultyLevels.expert
+    , difficultyLevel = difficultyLevels.beginner
     }
 
 
@@ -104,6 +104,12 @@ update msg model =
                 Map.uncover model.map location
             else
                 model.map
+
+        markedMap location =
+            if model.gameStatus == Started then
+                Map.mark model.map location
+            else
+                model.map
     in
         case msg of
             Uncover location ->
@@ -118,7 +124,7 @@ update msg model =
 
             Mark location ->
                 ( { model
-                    | map = Map.mark model.map location
+                    | map = markedMap location
                   }
                 , Cmd.none
                 )
