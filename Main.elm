@@ -5,7 +5,7 @@ import Square
 import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
-import Html.Attributes exposing (type', name, checked)
+import Html.Attributes exposing (style, type', name, checked)
 import Matrix exposing (Matrix, Location)
 import Json.Decode as Json
 import Random exposing (Generator)
@@ -246,11 +246,15 @@ squareView location square =
                 ( Mine, Uncovered, _ ) ->
                     "💣"
 
+                ( Empty, Uncovered, 0 ) ->
+                    ""
+
                 ( Empty, Uncovered, count ) ->
                     toString count
     in
         td
-            [ onClick (Uncover location)
+            [ style [ ( "width", "2em" ), ( "height", "2em" ) ]
+            , onClick (Uncover location)
             , onRightClick (Mark location)
             ]
             [ text content
