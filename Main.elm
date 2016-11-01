@@ -2,9 +2,10 @@ module Main exposing (..)
 
 import Types exposing (..)
 import Square
-import Html exposing (Html, text, div, h1, table, tr, td, button)
+import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
+import Html.Attributes exposing (type', name, checked)
 import Matrix exposing (Matrix, Location)
 import Json.Decode as Json
 import Random exposing (Generator)
@@ -94,6 +95,7 @@ type Msg
     | Mark Location
     | StartNewGame
     | NewMap Map
+    | ChangeDifficulty DifficultyLevel
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -142,6 +144,13 @@ update msg model =
                 , Cmd.none
                 )
 
+            ChangeDifficulty level ->
+                ( { initialModel
+                    | difficultyLevel = level
+                  }
+                , Random.generate NewMap (Map.random level)
+                )
+
 
 
 -- VIEW
@@ -161,6 +170,7 @@ view model =
                 [ text "Minesweeper" ]
             , button [ onClick StartNewGame ]
                 [ text "New game" ]
+            , difficultyView model.difficultyLevel
             , div []
                 [ div [] [ text <| "Total mines: " ++ toString minesTotal ]
                 , div [] [ text <| "Flags left: " ++ toString marksLeft ]
@@ -180,6 +190,29 @@ view model =
                     baseChildren
     in
         div [] children
+
+
+difficultyView : DifficultyLevel -> Html Msg
+difficultyView level =
+    fieldset []
+        [ difficultyRadio "Beginner" difficultyLevels.beginner level
+        , difficultyRadio "Intermediate" difficultyLevels.intermediate level
+        , difficultyRadio "Expert" difficultyLevels.expert level
+        ]
+
+
+difficultyRadio : String -> DifficultyLevel -> DifficultyLevel -> Html Msg
+difficultyRadio value level current =
+    label []
+        [ input
+            [ type' "radio"
+            , name "difficulty"
+            , checked (current == level)
+            , onClick (ChangeDifficulty level)
+            ]
+            []
+        , text value
+        ]
 
 
 mapView : Map -> Html Msg
