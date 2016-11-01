@@ -22,7 +22,7 @@ main =
 
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Random.generate NewMap (randomMap 10 10 5) )
+    ( initialModel, Random.generate NewMap (randomMap initialModel.difficultyLevel) )
 
 
 subscriptions : Model -> Sub Msg
@@ -37,6 +37,7 @@ subscriptions model =
 type alias Model =
     { map : Map
     , gameStatus : GameStatus
+    , difficultyLevel : DifficultyLevel
     }
 
 
@@ -73,6 +74,7 @@ initialModel : Model
 initialModel =
     { map = initialMap
     , gameStatus = Started
+    , difficultyLevel = difficultyLevels.beginner
     }
 
 
@@ -81,11 +83,30 @@ initialMap =
     Matrix.fromList []
 
 
-randomMap : Int -> Int -> Int -> Generator Map
-randomMap width height minesCount =
+type alias DifficultyLevel =
+    { height : Int, width : Int, mines : Int }
+
+
+type alias DifficultyLevels =
+    { beginner : DifficultyLevel
+    , intermediate : DifficultyLevel
+    , expert : DifficultyLevel
+    }
+
+
+difficultyLevels : DifficultyLevels
+difficultyLevels =
+    { beginner = DifficultyLevel 9 9 10
+    , intermediate = DifficultyLevel 16 16 40
+    , expert = DifficultyLevel 16 30 99
+    }
+
+
+randomMap : DifficultyLevel -> Generator Map
+randomMap level =
     let
         count =
-            min (width * height) minesCount
+            min (level.width * level.height) level.mines
 
         fillMatrix : Array Location -> Map
         fillMatrix locations =
@@ -93,8 +114,8 @@ randomMap width height minesCount =
                 locList =
                     Array.toList locations
             in
-                Matrix.matrix width
-                    height
+                Matrix.matrix level.width
+                    level.height
                     (\loc ->
                         if List.member loc locList then
                             ( Mine, Covered, 0 )
@@ -102,7 +123,7 @@ randomMap width height minesCount =
                             ( Empty, Covered, 0 )
                     )
     in
-        Matrix.matrix width height (\loc -> loc)
+        Matrix.matrix level.width level.height (\loc -> loc)
             |> Matrix.flatten
             |> Array.fromList
             |> RandomArray.shuffle
@@ -284,7 +305,7 @@ update msg model =
 
             StartNewGame ->
                 ( model
-                , Random.generate NewMap (randomMap 10 10 5)
+                , Random.generate NewMap (randomMap model.difficultyLevel)
                 )
 
             NewMap map ->
