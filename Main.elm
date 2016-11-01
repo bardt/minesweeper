@@ -5,15 +5,29 @@ import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
 import Matrix exposing (Matrix, Location)
 import Json.Decode as Json
+import Random exposing (Generator)
+import Random.Array as RandomArray
+import Array exposing (Array)
 
 
 main : Program Never
 main =
-    HtmlApp.beginnerProgram
-        { model = initialModel
+    HtmlApp.program
+        { init = init
         , view = view
         , update = update
+        , subscriptions = subscriptions
         }
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( initialModel, Random.generate NewMap (randomMap 10 10 5) )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
 
 
 
@@ -64,24 +78,37 @@ initialModel =
 
 initialMap : Map
 initialMap =
+    Matrix.fromList []
+
+
+randomMap : Int -> Int -> Int -> Generator Map
+randomMap width height minesCount =
     let
-        -- Short for Free
-        f =
-            ( Empty, Covered, 0 )
+        count =
+            min (width * height) minesCount
 
-        -- Short for Mine
-        m =
-            ( Mine, Covered, 0 )
-
-        x =
-            [ [ f, m, f, f, f ]
-            , [ m, f, f, f, m ]
-            , [ f, f, f, f, f ]
-            , [ m, f, m, f, f ]
-            , [ f, f, f, f, f ]
-            ]
+        fillMatrix : Array Location -> Map
+        fillMatrix locations =
+            let
+                locList =
+                    Array.toList locations
+            in
+                Matrix.matrix width
+                    height
+                    (\loc ->
+                        if List.member loc locList then
+                            ( Mine, Covered, 0 )
+                        else
+                            ( Empty, Covered, 0 )
+                    )
     in
-        putCountersIntoSquares (Matrix.fromList x)
+        Matrix.matrix width height (\loc -> loc)
+            |> Matrix.flatten
+            |> Array.fromList
+            |> RandomArray.shuffle
+            |> Random.map (Array.slice 0 count)
+            |> Random.map fillMatrix
+            |> Random.map putCountersIntoSquares
 
 
 countMines : Map -> Int
@@ -225,9 +252,10 @@ type Msg
     = Uncover Location
     | Mark Location
     | StartNewGame
+    | NewMap Map
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         uncoveredMap location =
@@ -238,23 +266,34 @@ update msg model =
     in
         case msg of
             Uncover location ->
-                { model
+                ( { model
                     | map =
                         uncoveredMap location
                     , gameStatus =
                         resolveGameStatus (uncoveredMap location)
-                }
+                  }
+                , Cmd.none
+                )
 
             Mark location ->
-                { model
+                ( { model
                     | map = mark location model.map
-                }
+                  }
+                , Cmd.none
+                )
 
             StartNewGame ->
-                { model
-                    | map = initialMap
+                ( model
+                , Random.generate NewMap (randomMap 10 10 5)
+                )
+
+            NewMap map ->
+                ( { model
+                    | map = map
                     , gameStatus = Started
-                }
+                  }
+                , Cmd.none
+                )
 
 
 uncoverOne : Map -> Location -> Map
