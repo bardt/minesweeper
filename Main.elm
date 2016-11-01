@@ -114,8 +114,8 @@ randomMap level =
                 locList =
                     Array.toList locations
             in
-                Matrix.matrix level.width
-                    level.height
+                Matrix.matrix level.height
+                    level.width
                     (\loc ->
                         if List.member loc locList then
                             ( Mine, Covered, 0 )
@@ -123,7 +123,7 @@ randomMap level =
                             ( Empty, Covered, 0 )
                     )
     in
-        Matrix.matrix level.width level.height (\loc -> loc)
+        Matrix.matrix level.height level.width (\loc -> loc)
             |> Matrix.flatten
             |> Array.fromList
             |> RandomArray.shuffle
