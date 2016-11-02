@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Types exposing (..)
-import Square
+import Square exposing (Square)
 import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
 import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
@@ -62,18 +62,9 @@ countMinesTotal m =
 
 countUsedMarks : Map -> Int
 countUsedMarks m =
-    let
-        checkMark s =
-            case s of
-                ( _, Marked, _ ) ->
-                    True
-
-                _ ->
-                    False
-    in
-        Matrix.flatten m
-            |> List.filter checkMark
-            |> List.length
+    Matrix.flatten m
+        |> List.filter Square.isMarked
+        |> List.length
 
 
 checkGameStatus : Map -> GameStatus
@@ -234,31 +225,13 @@ mapRowView rowHtml =
 
 squareView : Location -> Square -> Html Msg
 squareView location square =
-    let
-        content =
-            case square of
-                ( _, Marked, _ ) ->
-                    "🚩"
-
-                ( _, Covered, _ ) ->
-                    "◻️"
-
-                ( Mine, Uncovered, _ ) ->
-                    "💣"
-
-                ( Empty, Uncovered, 0 ) ->
-                    ""
-
-                ( Empty, Uncovered, count ) ->
-                    toString count
-    in
-        td
-            [ style [ ( "width", "2em" ), ( "height", "2em" ) ]
-            , onClick (Uncover location)
-            , onRightClick (Mark location)
-            ]
-            [ text content
-            ]
+    td
+        [ style [ ( "width", "2em" ), ( "height", "2em" ) ]
+        , onClick (Uncover location)
+        , onRightClick (Mark location)
+        ]
+        [ text <| Square.toString square
+        ]
 
 
 onRightClick : Msg -> Html.Attribute Msg

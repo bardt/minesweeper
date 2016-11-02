@@ -1,6 +1,7 @@
 module Types exposing (..)
 
 import Matrix exposing (Matrix, Location)
+import Square exposing (Square)
 
 
 type alias Model =
@@ -12,25 +13,6 @@ type alias Model =
 
 type alias Map =
     Matrix Square
-
-
-type alias Square =
-    ( MinePresence, CoverPresence, MinesAround )
-
-
-type alias MinesAround =
-    Int
-
-
-type MinePresence
-    = Mine
-    | Empty
-
-
-type CoverPresence
-    = Covered
-    | Uncovered
-    | Marked
 
 
 type GameStatus

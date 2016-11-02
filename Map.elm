@@ -11,7 +11,7 @@ module Map
 
 import Matrix exposing (Matrix, Location)
 import Types exposing (..)
-import Square
+import Square exposing (Square)
 import Array exposing (Array)
 import Random exposing (Generator)
 import Random.Array as RandomArray
@@ -39,9 +39,9 @@ random level =
                     level.width
                     (\loc ->
                         if List.member loc locList then
-                            ( Mine, Covered, 0 )
+                            Square.mined
                         else
-                            ( Empty, Covered, 0 )
+                            Square.empty
                     )
     in
         Matrix.matrix level.height level.width (\loc -> loc)
@@ -70,13 +70,13 @@ uncover map location =
     let
         canBeUncovered =
             Matrix.get location map
-                |> Maybe.map (\( m, c, _ ) -> c == Covered)
+                |> Maybe.map Square.isCovered
                 |> Maybe.withDefault False
 
         noMinesAround : Bool
         noMinesAround =
             Matrix.get location map
-                |> Maybe.map (\( m, _, count ) -> count == 0 && m /= Mine)
+                |> Maybe.map (\s -> Square.minesAround s == 0 && not (Square.hasMine s))
                 |> Maybe.withDefault False
 
         nextLocationsToUncover : List Location
@@ -147,16 +147,12 @@ putCountersIntoSquares map =
     let
         countEach : Location -> Square -> Square
         countEach location square =
-            case square of
-                ( Mine, c, m ) ->
-                    ( Mine, c, 0 )
-
-                ( Empty, c, m ) ->
-                    ( Empty
-                    , c
-                    , neighbourLocations location
-                        |> List.map (boolToInt << hasMine map)
-                        |> List.sum
-                    )
+            if Square.hasMine square then
+                Square.setMinesAround square 0
+            else
+                neighbourLocations location
+                    |> List.map (boolToInt << hasMine map)
+                    |> List.sum
+                    |> Square.setMinesAround square
     in
         Matrix.mapWithLocation countEach map
