@@ -210,7 +210,7 @@ mapView : Map -> Html Msg
 mapView map =
     let
         htmlMap =
-            Matrix.mapWithLocation squareView map
+            Matrix.map squareView map
 
         tableRows =
             List.map mapRowView (Matrix.toList htmlMap)
@@ -223,12 +223,12 @@ mapRowView rowHtml =
     tr [] rowHtml
 
 
-squareView : Location -> Square -> Html Msg
-squareView location square =
+squareView : Square -> Html Msg
+squareView square =
     td
         [ style [ ( "width", "2em" ), ( "height", "2em" ) ]
-        , onClick (Uncover location)
-        , onRightClick (Mark location)
+        , onClick <| Uncover <| Square.location square
+        , onRightClick <| Mark <| Square.location square
         ]
         [ text <| Square.toString square
         ]

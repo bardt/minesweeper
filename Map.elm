@@ -39,9 +39,9 @@ random level =
                     level.width
                     (\loc ->
                         if List.member loc locList then
-                            Square.mined
+                            Square.mined loc
                         else
-                            Square.empty
+                            Square.empty loc
                     )
     in
         Matrix.matrix level.height level.width (\loc -> loc)

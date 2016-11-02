@@ -9,6 +9,7 @@ module Square
         , uncover
         , toggleMark
           -- Getters
+        , location
         , minesAround
         , hasMine
         , isCovered
@@ -18,9 +19,11 @@ module Square
         , toString
         )
 
+import Matrix exposing (Location)
+
 
 type Square
-    = Square MinePresence CoverPresence MinesAround
+    = Square Location MinePresence CoverPresence MinesAround
 
 
 type alias MinesAround =
@@ -38,30 +41,35 @@ type CoverPresence
     | Marked
 
 
-empty : Square
-empty =
-    Square Empty Covered 0
+empty : Location -> Square
+empty loc =
+    Square loc Empty Covered 0
 
 
-mined : Square
-mined =
-    Square Mine Covered 0
+mined : Location -> Square
+mined loc =
+    Square loc Mine Covered 0
 
 
 setMinesAround : Square -> Int -> Square
-setMinesAround (Square m c _) mines =
-    Square m c mines
+setMinesAround (Square l m c _) mines =
+    Square l m c mines
 
 
 minesAround : Square -> Int
-minesAround (Square _ _ count) =
+minesAround (Square _ _ _ count) =
     count
+
+
+location : Square -> Location
+location (Square loc _ _ _) =
+    loc
 
 
 hasMine : Square -> Bool
 hasMine square =
     case square of
-        Square Mine _ _ ->
+        Square _ Mine _ _ ->
             True
 
         _ ->
@@ -74,20 +82,20 @@ isCovered =
 
 
 isUncovered : Square -> Bool
-isUncovered (Square _ cover _) =
+isUncovered (Square _ _ cover _) =
     cover == Uncovered
 
 
 isMarked : Square -> Bool
-isMarked (Square _ marked _) =
+isMarked (Square _ _ marked _) =
     marked == Marked
 
 
 uncover : Square -> Square
 uncover square =
     case square of
-        Square m Covered c ->
-            Square m Uncovered c
+        Square l m Covered c ->
+            Square l m Uncovered c
 
         _ ->
             square
@@ -96,13 +104,13 @@ uncover square =
 isSolved : Square -> Bool
 isSolved square =
     case square of
-        Square Empty Uncovered _ ->
+        Square _ Empty Uncovered _ ->
             True
 
-        Square Mine Covered _ ->
+        Square _ Mine Covered _ ->
             True
 
-        Square Mine Marked _ ->
+        Square _ Mine Marked _ ->
             True
 
         _ ->
@@ -117,11 +125,11 @@ isFailed square =
 toggleMark : Square -> Square
 toggleMark square =
     case square of
-        Square m Covered c ->
-            Square m Marked c
+        Square l m Covered c ->
+            Square l m Marked c
 
-        Square m Marked c ->
-            Square m Covered c
+        Square l m Marked c ->
+            Square l m Covered c
 
         _ ->
             square
@@ -130,17 +138,17 @@ toggleMark square =
 toString : Square -> String
 toString square =
     case square of
-        Square _ Marked _ ->
+        Square _ _ Marked _ ->
             "🚩"
 
-        Square _ Covered _ ->
+        Square _ _ Covered _ ->
             "◻️"
 
-        Square Mine Uncovered _ ->
+        Square _ Mine Uncovered _ ->
             "💣"
 
-        Square Empty Uncovered 0 ->
+        Square _ Empty Uncovered 0 ->
             ""
 
-        Square Empty Uncovered count ->
+        Square _ Empty Uncovered count ->
             Basics.toString count
