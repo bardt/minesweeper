@@ -3,9 +3,8 @@ module Main exposing (..)
 import Types exposing (..)
 import Square exposing (Square)
 import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
-import Html.App as HtmlApp
 import Html.Events exposing (onClick, onWithOptions)
-import Html.Attributes exposing (style, type', name, checked)
+import Html.Attributes exposing (style, type_, name, checked)
 import Matrix exposing (Matrix, Location)
 import Json.Decode as Json
 import Random exposing (Generator)
@@ -13,9 +12,9 @@ import Map
 import Rest exposing (..)
 
 
-main : Program Never
+main : Program Never Model Msg
 main =
-    HtmlApp.program
+    Html.program
         { init = init
         , view = view
         , update = update
@@ -196,7 +195,7 @@ difficultyRadio : String -> DifficultyLevel -> DifficultyLevel -> Html Msg
 difficultyRadio value level current =
     label []
         [ input
-            [ type' "radio"
+            [ type_ "radio"
             , name "difficulty"
             , checked (current == level)
             , onClick (ChangeDifficulty level)
