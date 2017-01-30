@@ -1,7 +1,7 @@
-module Main exposing (..)
+module App exposing (..)
 
-import Types exposing (..)
 import Square exposing (Square)
+import Types exposing (..)
 import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
 import Html.Events exposing (onClick, onWithOptions)
 import Html.Attributes exposing (style, type_, name, checked)
@@ -10,20 +10,11 @@ import Json.Decode as Json
 import Random exposing (Generator)
 import Map
 import Rest exposing (..)
+import Gestures
 
 
-main : Program Never Model Msg
-main =
-    Html.program
-        { init = init
-        , view = view
-        , update = update
-        , subscriptions = subscriptions
-        }
-
-
-init : ( Model, Cmd Msg )
-init =
+init : flags -> ( Model, Cmd Msg )
+init _ =
     ( initialModel, Random.generate NewMap (Map.random initialModel.difficultyLevel) )
 
 
@@ -225,9 +216,11 @@ mapRowView rowHtml =
 squareView : Square -> Html Msg
 squareView square =
     td
-        [ style [ ( "width", "2em" ), ( "height", "2em" ) ]
+        [ style [ ( "width", "2em" ), ( "height", "2em" ), ( "-webkit-user-select", "none" ) ]
         , onClick <| Uncover <| Square.location square
         , onRightClick <| Mark <| Square.location square
+        , Gestures.onTap <| Uncover <| Square.location square
+        , Gestures.onLongTap <| Mark <| Square.location square
         ]
         [ text <| Square.toString square
         ]
