@@ -6,6 +6,7 @@ import Square exposing (Square)
 
 type alias Model =
     { map : Map
+    , screen : Screen
     , gameStatus : GameStatus
     , difficultyLevel : DifficultyLevel
     }
@@ -13,6 +14,12 @@ type alias Model =
 
 type alias Map =
     Matrix Square
+
+
+type Screen
+    = Start
+    | Difficulty
+    | Game
 
 
 type GameStatus

@@ -30,6 +30,7 @@ subscriptions model =
 initialModel : Model
 initialModel =
     { map = Map.empty
+    , screen = Start
     , gameStatus = Started
     , difficultyLevel = difficultyLevels.beginner
     }
@@ -72,11 +73,11 @@ checkGameStatus map =
 
 
 type Msg
-    = Uncover Location
+    = ChangeScreen Screen
+    | StartNewGame DifficultyLevel
+    | Uncover Location
     | Mark Location
-    | StartNewGame
     | NewMap Map
-    | ChangeDifficulty DifficultyLevel
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -112,9 +113,12 @@ update msg model =
                 , Cmd.none
                 )
 
-            StartNewGame ->
-                ( model
-                , Random.generate NewMap (Map.random model.difficultyLevel)
+            StartNewGame level ->
+                ( { model
+                    | difficultyLevel = level
+                    , screen = Game
+                  }
+                , Random.generate NewMap (Map.random level)
                 )
 
             NewMap map ->
@@ -125,12 +129,8 @@ update msg model =
                 , Cmd.none
                 )
 
-            ChangeDifficulty level ->
-                ( { initialModel
-                    | difficultyLevel = level
-                  }
-                , Random.generate NewMap (Map.random level)
-                )
+            ChangeScreen screen ->
+                ( { model | screen = screen }, Cmd.none )
 
 
 
@@ -139,19 +139,52 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    case model.screen of
+        Start ->
+            startScreen
+
+        Difficulty ->
+            difficultyScreen
+
+        Game ->
+            gameScreen model
+
+
+startScreen : Html Msg
+startScreen =
+    div []
+        [ h1 []
+            [ text "Minesweeper" ]
+        , button [ onClick <| ChangeScreen Difficulty ]
+            [ text "New game" ]
+        ]
+
+
+difficultyScreen : Html Msg
+difficultyScreen =
+    div []
+        [ h1 []
+            [ text "Minesweeper" ]
+        , div []
+            [ difficultyButton "Beginner" difficultyLevels.beginner
+            , difficultyButton "Intermediate" difficultyLevels.intermediate
+            , difficultyButton "Expert" difficultyLevels.expert
+            ]
+        ]
+
+
+gameScreen : Model -> Html Msg
+gameScreen model =
     let
         minesTotal =
             countMinesTotal model.map
 
         marksLeft =
             minesTotal - countUsedMarks model.map
-
-        baseChildren =
-            [ h1 []
-                [ text "Minesweeper" ]
-            , button [ onClick StartNewGame ]
+    in
+        div []
+            [ button [ onClick <| StartNewGame model.difficultyLevel ]
                 [ text "New game" ]
-            , difficultyView model.difficultyLevel
             , div []
                 [ div [] [ text <| "💣" ++ toString minesTotal ]
                 , div [] [ text <| "🚩" ++ toString marksLeft ]
@@ -159,41 +192,13 @@ view model =
                 ]
             ]
 
-        children =
-            case model.gameStatus of
-                Failed ->
-                    baseChildren ++ [ h1 [] [ text "You failed" ] ]
 
-                Won ->
-                    baseChildren ++ [ h1 [] [ text "The winner is you" ] ]
-
-                Started ->
-                    baseChildren
-    in
-        div [] children
-
-
-difficultyView : DifficultyLevel -> Html Msg
-difficultyView level =
-    fieldset []
-        [ difficultyRadio "Beginner" difficultyLevels.beginner level
-        , difficultyRadio "Intermediate" difficultyLevels.intermediate level
-        , difficultyRadio "Expert" difficultyLevels.expert level
+difficultyButton : String -> DifficultyLevel -> Html Msg
+difficultyButton caption level =
+    button
+        [ onClick <| StartNewGame level
         ]
-
-
-difficultyRadio : String -> DifficultyLevel -> DifficultyLevel -> Html Msg
-difficultyRadio value level current =
-    label []
-        [ input
-            [ type_ "radio"
-            , name "difficulty"
-            , checked (current == level)
-            , onClick (ChangeDifficulty level)
-            ]
-            []
-        , text value
-        ]
+        [ text caption ]
 
 
 mapView : Map -> Html Msg
