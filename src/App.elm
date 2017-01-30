@@ -153,8 +153,8 @@ view model =
                 [ text "New game" ]
             , difficultyView model.difficultyLevel
             , div []
-                [ div [] [ text <| "Total mines: " ++ toString minesTotal ]
-                , div [] [ text <| "Flags left: " ++ toString marksLeft ]
+                [ div [] [ text <| "💣" ++ toString minesTotal ]
+                , div [] [ text <| "🚩" ++ toString marksLeft ]
                 , mapView model.map
                 ]
             ]
