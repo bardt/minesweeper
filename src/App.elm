@@ -1,21 +1,14 @@
 module App exposing (..)
 
-import Square exposing (Square)
 import Types exposing (..)
 import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
 import Html.Events exposing (onClick, onWithOptions)
-import Html.Attributes exposing (style, type_, name, checked)
-import Matrix exposing (Matrix, Location)
-import Json.Decode as Json
-import Random exposing (Generator)
-import Map
-import Rest exposing (..)
-import Gestures
+import Game exposing (Game, difficultyLevels)
 
 
 init : flags -> ( Model, Cmd Msg )
 init _ =
-    ( initialModel, Random.generate NewMap (Map.random initialModel.difficultyLevel) )
+    ( initialModel, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -27,45 +20,17 @@ subscriptions model =
 -- MODEL
 
 
+type alias Model =
+    { screen : Screen
+    , game : Game
+    }
+
+
 initialModel : Model
 initialModel =
-    { map = Map.empty
+    { game = Game.initialGame
     , screen = Start
-    , gameStatus = Started
-    , difficultyLevel = difficultyLevels.beginner
     }
-
-
-difficultyLevels : DifficultyLevels
-difficultyLevels =
-    { beginner = DifficultyLevel 9 9 10
-    , intermediate = DifficultyLevel 16 16 40
-    , expert = DifficultyLevel 16 30 99
-    }
-
-
-countMinesTotal : Map -> Int
-countMinesTotal m =
-    Matrix.flatten m
-        |> List.map (boolToInt << Square.hasMine)
-        |> List.sum
-
-
-countUsedMarks : Map -> Int
-countUsedMarks m =
-    Matrix.flatten m
-        |> List.filter Square.isMarked
-        |> List.length
-
-
-checkGameStatus : Map -> GameStatus
-checkGameStatus map =
-    if Map.isSolved map then
-        Won
-    else if Map.isFailed map then
-        Failed
-    else
-        Started
 
 
 
@@ -75,62 +40,37 @@ checkGameStatus map =
 type Msg
     = ChangeScreen Screen
     | StartNewGame DifficultyLevel
-    | Uncover Location
-    | Mark Location
-    | NewMap Map
+    | GameMsg Game.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        uncoveredMap location =
-            if model.gameStatus == Started then
-                Map.uncover model.map location
-            else
-                model.map
-
-        markedMap location =
-            if model.gameStatus == Started then
-                Map.mark model.map location
-            else
-                model.map
-    in
-        case msg of
-            Uncover location ->
+    case msg of
+        StartNewGame level ->
+            let
+                ( newGame, gameCmd ) =
+                    Game.initWithLevel level
+            in
                 ( { model
-                    | map =
-                        uncoveredMap location
-                    , gameStatus =
-                        checkGameStatus (uncoveredMap location)
+                    | screen = Types.Game
+                    , game = newGame
                   }
-                , Cmd.none
+                , Cmd.map GameMsg gameCmd
                 )
 
-            Mark location ->
-                ( { model
-                    | map = markedMap location
-                  }
-                , Cmd.none
-                )
+        ChangeScreen screen ->
+            ( { model | screen = screen }, Cmd.none )
 
-            StartNewGame level ->
+        GameMsg gameMsg ->
+            let
+                ( updatedGameModel, gameCmd ) =
+                    Game.update gameMsg model.game
+            in
                 ( { model
-                    | difficultyLevel = level
-                    , screen = Game
+                    | game = updatedGameModel
                   }
-                , Random.generate NewMap (Map.random level)
+                , Cmd.map GameMsg gameCmd
                 )
-
-            NewMap map ->
-                ( { model
-                    | map = map
-                    , gameStatus = Started
-                  }
-                , Cmd.none
-                )
-
-            ChangeScreen screen ->
-                ( { model | screen = screen }, Cmd.none )
 
 
 
@@ -173,26 +113,6 @@ difficultyScreen =
         ]
 
 
-gameScreen : Model -> Html Msg
-gameScreen model =
-    let
-        minesTotal =
-            countMinesTotal model.map
-
-        marksLeft =
-            minesTotal - countUsedMarks model.map
-    in
-        div []
-            [ button [ onClick <| StartNewGame model.difficultyLevel ]
-                [ text "New game" ]
-            , div []
-                [ div [] [ text <| "💣" ++ toString minesTotal ]
-                , div [] [ text <| "🚩" ++ toString marksLeft ]
-                , mapView model.map
-                ]
-            ]
-
-
 difficultyButton : String -> DifficultyLevel -> Html Msg
 difficultyButton caption level =
     button
@@ -201,42 +121,6 @@ difficultyButton caption level =
         [ text caption ]
 
 
-mapView : Map -> Html Msg
-mapView map =
-    let
-        htmlMap =
-            Matrix.map squareView map
-
-        tableRows =
-            List.map mapRowView (Matrix.toList htmlMap)
-    in
-        table [] tableRows
-
-
-mapRowView : List (Html Msg) -> Html Msg
-mapRowView rowHtml =
-    tr [] rowHtml
-
-
-squareView : Square -> Html Msg
-squareView square =
-    td
-        [ style [ ( "width", "2em" ), ( "height", "2em" ), ( "-webkit-user-select", "none" ) ]
-        , onClick <| Uncover <| Square.location square
-        , onRightClick <| Mark <| Square.location square
-        , Gestures.onTap <| Uncover <| Square.location square
-        , Gestures.onLongTap <| Mark <| Square.location square
-        ]
-        [ text <| Square.toString square
-        ]
-
-
-onRightClick : Msg -> Html.Attribute Msg
-onRightClick msg =
-    let
-        preventOpt =
-            { stopPropagation = True
-            , preventDefault = True
-            }
-    in
-        onWithOptions "contextmenu" preventOpt (Json.succeed msg)
+gameScreen : Model -> Html Msg
+gameScreen model =
+    Html.map GameMsg (Game.view model.game)

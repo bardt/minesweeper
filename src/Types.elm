@@ -4,14 +4,6 @@ import Matrix exposing (Matrix, Location)
 import Square exposing (Square)
 
 
-type alias Model =
-    { map : Map
-    , screen : Screen
-    , gameStatus : GameStatus
-    , difficultyLevel : DifficultyLevel
-    }
-
-
 type alias Map =
     Matrix Square
 
@@ -23,7 +15,7 @@ type Screen
 
 
 type GameStatus
-    = Started
+    = InProgress
     | Failed
     | Won
 
