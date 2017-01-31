@@ -10,7 +10,8 @@ module Game
         , Msg
         )
 
-import Html exposing (Html, button, div, table, td, text, tr)
+import Gestures
+import Html exposing (Html, button, div, h2, table, td, text, tr)
 import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Map
@@ -19,7 +20,6 @@ import Random
 import Rest exposing (boolToInt)
 import Square exposing (Square)
 import Types exposing (..)
-import Gestures
 
 
 type alias Game =
@@ -140,7 +140,17 @@ view game =
     in
         div []
             [ div []
-                [ div [] [ text <| "💣" ++ toString minesTotal ]
+                [ (case game.status of
+                    InProgress ->
+                        text ""
+
+                    Won ->
+                        h2 [] [ text "The winner is you" ]
+
+                    Failed ->
+                        h2 [] [ text "You failed" ]
+                  )
+                , div [] [ text <| "💣" ++ toString minesTotal ]
                 , div [] [ text <| "🚩" ++ toString marksLeft ]
                 , mapView game.map
                 ]
