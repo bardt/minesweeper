@@ -1,9 +1,9 @@
 module App exposing (..)
 
-import Types exposing (..)
-import Html exposing (Html, text, div, h1, table, tr, td, button, fieldset, label, input)
-import Html.Events exposing (onClick, onWithOptions)
 import Game exposing (Game, difficultyLevels)
+import Html exposing (Html, button, div, fieldset, h1, h2, input, label, table, td, text, tr)
+import Html.Events exposing (onClick, onWithOptions)
+import Types exposing (..)
 
 
 init : flags -> ( Model, Cmd Msg )
@@ -38,7 +38,8 @@ initialModel =
 
 
 type Msg
-    = ChangeScreen Screen
+    = GoToStartScreen
+    | GoToDifficultyScreen
     | StartNewGame DifficultyLevel
     | GameMsg Game.Msg
 
@@ -58,8 +59,11 @@ update msg model =
                 , Cmd.map GameMsg gameCmd
                 )
 
-        ChangeScreen screen ->
-            ( { model | screen = screen }, Cmd.none )
+        GoToStartScreen ->
+            ( { model | screen = Start }, Cmd.none )
+
+        GoToDifficultyScreen ->
+            ( { model | screen = Difficulty }, Cmd.none )
 
         GameMsg gameMsg ->
             let
@@ -94,9 +98,9 @@ startScreen : Html Msg
 startScreen =
     div []
         [ h1 []
-            [ text "Minesweeper" ]
-        , button [ onClick <| ChangeScreen Difficulty ]
-            [ text "New game" ]
+            [ text "🚩👷💣" ]
+        , button [ onClick <| GoToDifficultyScreen ]
+            [ text "🏁" ]
         ]
 
 
@@ -104,11 +108,11 @@ difficultyScreen : Html Msg
 difficultyScreen =
     div []
         [ h1 []
-            [ text "Minesweeper" ]
+            [ text "🚩👷💣" ]
         , div []
-            [ difficultyButton "Beginner" difficultyLevels.beginner
-            , difficultyButton "Intermediate" difficultyLevels.intermediate
-            , difficultyButton "Expert" difficultyLevels.expert
+            [ difficultyButton "😀" difficultyLevels.beginner
+            , difficultyButton "\x1F913" difficultyLevels.intermediate
+            , difficultyButton "😈" difficultyLevels.expert
             ]
         ]
 
@@ -123,4 +127,28 @@ difficultyButton caption level =
 
 gameScreen : Model -> Html Msg
 gameScreen model =
-    Html.map GameMsg (Game.view model.game)
+    let
+        repeat =
+            button [ onClick (StartNewGame model.game.level) ] [ text "🔁" ]
+
+        backToStart =
+            button [ onClick GoToStartScreen ] [ text "🔙" ]
+    in
+        div []
+            [ div []
+                [ (case model.game.status of
+                    InProgress ->
+                        div []
+                            [ div [] [ text <| "💣" ++ toString (Game.countMinesTotal model.game.map) ]
+                            , div [] [ text <| "🚩" ++ toString (Game.countMarksLeft model.game.map) ]
+                            ]
+
+                    Won ->
+                        h2 [] [ backToStart, text "😎", repeat ]
+
+                    Failed ->
+                        h2 [] [ backToStart, text "😭", repeat ]
+                  )
+                ]
+            , Html.map GameMsg (Game.view model.game)
+            ]

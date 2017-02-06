@@ -6,6 +6,9 @@ module Game
         , update
         , view
         , difficultyLevels
+        , countMinesTotal
+        , countMarksLeft
+        , countUsedMarks
         , Game
         , Msg
         )
@@ -129,32 +132,14 @@ countUsedMarks m =
         |> List.length
 
 
+countMarksLeft : Map -> Int
+countMarksLeft m =
+    countMinesTotal m - countUsedMarks m
+
+
 view : Game -> Html Msg
 view game =
-    let
-        minesTotal =
-            countMinesTotal game.map
-
-        marksLeft =
-            minesTotal - countUsedMarks game.map
-    in
-        div []
-            [ div []
-                [ (case game.status of
-                    InProgress ->
-                        text ""
-
-                    Won ->
-                        h2 [] [ text "The winner is you" ]
-
-                    Failed ->
-                        h2 [] [ text "You failed" ]
-                  )
-                , div [] [ text <| "💣" ++ toString minesTotal ]
-                , div [] [ text <| "🚩" ++ toString marksLeft ]
-                , mapView game.map
-                ]
-            ]
+    mapView game.map
 
 
 mapView : Map -> Html Msg
